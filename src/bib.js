@@ -1,245 +1,181 @@
-/*global VIS, d3 */
+/*global d3, utils */
 "use strict";
-var bib = { };
 
-bib.doc_author = function (doc) {
-    var lead,
-        lead_trail,
-        result;
+// Bibliography processing: sorting and citing.
+//
+// New sorting or citing methods can be added by deriving an object from
+// this one; see bib_dfr() for how this is done.
+//
+// In addition to sort() and citation() methods, a bibliography object
+// must also be able to say what kinds of sorting are available: sorting().
+//
+// It also should provide document URLs. The url() method here is a stub
+// and should be overriden in the derived object.
+//
+// Bibliographic data is not stored here; that is the job of the
+// metadata object owned by the model.
 
-    if (doc.authors.length > 0) {
-        lead = doc.authors[0].replace(/,/g, "").split(" ");
-        // check for Jr., Sr., 2nd, etc.
-        // Can mess up if last name is actually the letter I, X, or V.
-        lead_trail = lead.pop();
-        if (lead.length >= 2
-                && (lead_trail.search(/^(\d|Jr|Sr|[IXV]+$)/) !== -1)) {
-            result = lead.pop().replace(/_$/, "");
-            lead_trail = ", " + lead_trail.replace(/\W*$/, "");
-        } else {
-            result = lead_trail;
-            lead_trail = "";
+var bib = function (spec) {
+    var my = spec || { },
+        that = { },
+        options,
+        sorting,
+        sort,
+        citation,
+        url;
+
+    // to be overridden in subclasses
+    if (!my.sorting) {
+        my.sorting = [["all_raw", "by raw entry"]];
+    }
+
+    // supplementary options (to be used by subclasses)
+    options = function (spec) {
+        if (spec !== undefined) {
+            options = utils.deep_replace(options, spec);
         }
-        result += ", " + lead.join(" ") + lead_trail;
-        if (doc.authors.length > 1) {
-            // "et al" is better for real bibliography, but it's
-            // actually worth being able to search all the multiple authors
-            /*if (doc.authors.length > 3) {
-                result += ", " + doc.authors.slice(1, 3).join(", ");
-                result += "et al.";
-            } else {*/
-            if (doc.authors.length > 2) {
-                result += ", ";
-                result += doc.authors
-                    .slice(1, doc.authors.length - 1)
-                    .join(", ");
-            }
-            result += ", and " + doc.authors[doc.authors.length - 1];
+        return options;
+    };
+    that.options = options;
+
+    // Gets or sets the description of sorting methods.
+    //
+    // This should be an array of two element arrays. The first element
+    // should be a string giving a possible major_minor pairing separated
+    // by an underscore; the second element is a human-readable description
+    // for use in a sorting options menu (rendered by view.bib).
+
+    sorting = function (srt) {
+        if (srt !== undefined) {
+            my.sorting = srt;
         }
-    } else {
-        result = "[Anon]";
-    }
+        return my.sorting;
+    };
+    that.sorting = sorting;
 
-    return result;
-};
+    // Sort-key functions
+    //
+    // Every major or minor key in the sorting specification should
+    // correspond to a function here that takes a document and returns a
+    // string usable as a (lexicographic) sort key. Major keys are also
+    // used as section headings in the bibliography display. (To tweak
+    // them, set the key function's "display_heading" property to a
+    // function. See: bib_dfr().keys.issue.)
 
-// bibliography sorting
-bib.sort = function (m, major, minor, asc_maj, asc_min) {
-    var result = [],
-        docs,
-        major_key,
-        minor_key,
-        cmp_maj,
-        cmp_min,
-        cur_major,
-        i,
-        last,
-        get_id = function (d) { return d.id; },
-        partition = [];
+    that.keys = { };
 
-    if (major === "decade") {
-        major_key = function (i) {
-            return Math.floor(m.meta(i).date.getUTCFullYear() / 10).toString() +
-                "0s";
-        };
-    } else if (major === "year") {
-        major_key = function (i) {
-            return m.meta(i).date.getUTCFullYear();
-        };
-    } else if (major === "journal") {
-        major_key = function (i) {
-            return m.meta(i).journaltitle;
-        };
-    } else if (major === "issue") {
-        major_key = function (i) {
-            var doc = m.meta(i),
-                k;
-            k = doc.journaltitle;
-            k += "_" + d3.format("05d")(doc.volume);
-            k += "_" + d3.format("05d")((doc.issue === "") ? 0
-                    : doc.issue.replace(/\/.*$/, ""));
-            return k;
-        };
-    } else { // expected: major === "alpha"
-        // default to alphabetical by author
-        major_key = function (i) {
-            return bib.doc_author(m.meta(i)).replace(/^\W*/, "")[0]
-                .toUpperCase();
-        };
-    }
+    // dummy sort keys: for a major heading, just "All":
+    that.keys.all = function () {
+        return "All";
+    };
 
-    if (minor === "date") {
-        minor_key = function (i) {
-            return +m.meta(i).date;
-        };
-    } else if (minor === "journal") {
-        minor_key = function (i) {
-            var doc = m.meta(i),
-                result_m = doc.journaltitle;
+    // for a minor, the stringified full object
+    that.keys.raw = function (doc) {
+        return JSON.stringify(doc);
+    };
 
-            result_m += d3.format("05d")(doc.volume);
-            result_m += d3.format("05d")((doc.issue === "") ? 0
-                    : doc.issue.replace(/\/.*$/, ""));
-            if (doc.pagerange.search(/^\d/) !== -1) {
-                result_m += d3.format("05d")(doc.pagerange.match(/^(\d+)/)[1]);
-            } else {
-                result_m += doc.pagerange;
-            }
-            return result_m;
-        };
-    } else { // expected: minor === "alpha"
-        // default to alphabetical by author then title
-        minor_key = function (i) {
-            return bib.doc_author(m.meta(i)) + m.meta(i).title;
-        };
-    }
+    // bibliography sorting
+    sort = function (p) {
+        var result = [],
+            docs,
+            cmp_maj = p.dir.major ? d3.ascending : d3.descending,
+            cmp_min = p.dir.minor ? d3.ascending : d3.descending,
+            get_id = function (d) { return d.id; },
+            cur_major,
+            i, last, partition = [];
 
-    cmp_maj = asc_maj ? d3.ascending : d3.descending;
-    cmp_min = asc_min ? d3.ascending : d3.descending;
-
-    docs = d3.range(m.n_docs())
-        .map(function (d) {
-            return {
-                id: d,
-                major: major_key(d),
-                minor: minor_key(d)
-            };
-        })
-        .sort(function (a, b) {
-            return cmp_maj(a.major, b.major) ||
-                cmp_min(a.minor, b.minor) ||
-                d3.ascending(a.id, b.id); // stabilize sort
-        });
-
-    for (i = 0, cur_major = ""; i < docs.length; i += 1) {
-        if (docs[i].major !== cur_major) {
-            partition.push(i);
-            result.push({
-                heading: docs[i].major
+        docs = p.docs.map(function (d, j) {
+                return {
+                    id: j,
+                    major: that.keys[p.major](d),
+                    minor: that.keys[p.minor](d)
+                };
+            })
+            .sort(function (a, b) {
+                return cmp_maj(a.major, b.major) ||
+                    cmp_min(a.minor, b.minor) ||
+                    d3.ascending(a.id, b.id); // stabilize sort
             });
-            cur_major = docs[i].major;
+
+        for (i = 0, cur_major = ""; i < docs.length; i += 1) {
+            if (docs[i].major !== cur_major) {
+                partition.push(i);
+                result.push({
+                    heading: docs[i].major
+                });
+                cur_major = docs[i].major;
+            }
         }
-    }
-    partition.shift(); // correct for "0" always getting added at the start
-    partition.push(docs.length); // make sure we get the tail 
+        partition.shift(); // correct for "0" always getting added at the start
+        partition.push(docs.length); // make sure we get the tail
 
-    for (i = 0, last = 0; i < partition.length; i += 1) {
-        result[i].docs = docs.slice(last, partition[i]).map(get_id);
-        last = partition[i];
-    }
+        for (i = 0, last = 0; i < partition.length; i += 1) {
+            result[i].docs = docs.slice(last, partition[i]).map(get_id);
+            last = partition[i];
+        }
 
+        // decoded equivalent of major keys, if necessary
 
-    return result;
-};
+        if (typeof that.keys[p.major].display_heading === "function") {
+            result.forEach(function (o) {
+                o.heading_display = that.keys[p.major]
+                    .display_heading(o.heading);
+            });
+        }
 
-// validate major/minor sort terms. The output is the same as the input,
-// except an invalid term is replaced with undefined.
-bib.sort.validate = function (p) {
-    var result = p;
-    if (VIS.bib.keys.major.indexOf(p.major) === -1) {
-        result.major = undefined;
-    }
-    if (VIS.bib.keys.minor.indexOf(p.minor) === -1) {
-        result.minor = undefined;
-    }
-
-    if (p.dir !== "up" && p.dir !== "down") {
-        result.dir = undefined;
-    }
-
-    return result;
-};
-
-// Semantics of ascending/descending
-// minor dir == major dir iff minor & major are semantically similar
-// with ascending as the default otherwise
-bib.sort.dir = function (p) {
-    var result = {
-        major: true,
-        minor: true
-    };
-
-    if (p.dir === "up") {
         return result;
-    }
-
-    if (p.dir === "down") {
-        result.major = false;
-        if (p.major === "decade" || p.major === "year"
-                || p.major === "issue") {
-            result.minor = p.minor !== "date" && p.minor !== "journal";
-        } else if (p.major === "alpha" || p.major === "journal") {
-            // journal title descending --> journal contents ascending
-            // Right, I think, but not wholly obvious
-            result.minor = p.minor !== "alpha";
-        } else {
-            // shouldn't ever get here, but...
-            result.minor = true;
-        }
-    }
-    return result;
-};
-
-bib.citation = function (doc) {
-    var result = bib.doc_author(doc);
-
-    // don't duplicate trailing period on middle initial etc.
-    result = result.replace(/\.?$/, ". ");
-    result += '"' + doc.title + '."';
-    result += " <em>" + doc.journaltitle + "</em> ";
-    result += doc.volume;
-    if (doc.issue) {
-        result += ", no. " + doc.issue;
-    }
-
-    result += " (" + VIS.cite_date_format(doc.date) + "): ";
-    result += doc.pagerange + ".";
-
-    result = result.replace(/\.\./g, ".");
-    result = result.replace(/_/g, ",");
-    result = result.replace(/\t/g, "");
-
-    return result;
-};
-
-bib.parse = function (d) {
-
-    // no header, but this is the column order:
-    // 0  1     2      3            4      5     6       7      
-    // id,title,author,journaltitle,volume,issue,pubdate,pagerange
-    var a_str = d[2].trim(), // author
-        date = new Date(d[6].trim()); // pubdate (UTC)
-
-    return {
-        doi: d[0].trim(), // id
-        title: d[1].trim(),
-        authors: a_str === "" ? [] : a_str.split(VIS.bib.author_delimiter),
-        journaltitle: d[3].trim(),
-        volume: d[4].trim(),
-        issue: d[5].trim(),
-        date: date, // pubdate
-        pagerange: d[7].trim()
-            .replace(/^p?p\. /, "")
-            .replace(/-/g, "–")
     };
-};
+    that.sort = sort;
+
+    // validate major/minor sort terms. The output is the same as the input,
+    // except an invalid term is replaced with undefined.
+
+    sort.validate = function (p) {
+        var major = my.sorting.map(function (s) {
+                return s[0].split("_")[0];
+            }),
+            minor = my.sorting.map(function (s) {
+                return s[0].split("_")[1];
+            }),
+            result = p;
+        if (major.indexOf(p.major) === -1) {
+            result.major = undefined;
+        }
+        if (minor.indexOf(p.minor) === -1) {
+            result.minor = undefined;
+        }
+
+        if (p.dir !== "up" && p.dir !== "down") {
+            result.dir = undefined;
+        }
+
+        return result;
+    };
+
+    // Semantics of ascending/descending:
+    // Convert a triplet (major, minor, direction) to a doublet
+    // (major_direction, minor_direction). Additionally we expect
+    // the input to be specified in words, but the output is in Booleans.
+
+    // The stub here is: minor always true
+    sort.dir = function (p) {
+        return {
+            major: p.dir !== "down",
+            minor: true
+        };
+    };
+
+    // Stub citation method
+    citation = function (doc) {
+        return JSON.stringify(doc);
+    };
+    that.citation = citation;
+
+    // Stub url method
+    url = function () {
+        return "";
+    };
+    that.url = url;
+
+    return that;
+}; // bib()

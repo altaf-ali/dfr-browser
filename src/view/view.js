@@ -1,4 +1,4 @@
-/*global VIS, d3 */
+/*global VIS, d3, window */
 "use strict";
 var view = (function () {
 
@@ -6,7 +6,9 @@ var view = (function () {
         my = {
             updating: false
         },
+        dfb,
         updating,
+        dirty,
         loading,
         calculating,
         error,
@@ -14,7 +16,17 @@ var view = (function () {
         tooltip,
         append_weight_tds,
         plot_svg,
-        append_svg;
+        append_svg,
+        scroll_top,
+        scroll_origin;
+
+    dfb = function (controller) {
+        if (controller !== undefined) {
+            my.dfb = controller;
+        }
+        return my.dfb;
+    };
+    that.dfb = dfb;
 
     updating = function (flag) {
         if (typeof flag === "boolean") {
@@ -24,13 +36,32 @@ var view = (function () {
     };
     that.updating = updating;
 
+    // TODO get rid of updating(), use dirty() everywhere
+    dirty = function (key, flag) {
+        if (!my.dirty) {
+            my.dirty = d3.set();
+        }
+        if (flag === undefined) {
+            return my.dirty.has(key);
+        }
+
+        // otherwise
+        if (flag) {
+            my.dirty.add(key);
+        } else {
+            my.dirty.remove(key);
+        }
+        return flag;
+    };
+    that.dirty = dirty;
+
     loading = function (flag) {
-        d3.select("#loading_message").classed("hidden", !flag);
+        d3.select("#working_icon").classed("invisible", !flag);
     };
     that.loading = loading;
 
     calculating = function (sel, flag) {
-        d3.select("#calc_message").classed("hidden", !flag);
+        d3.select("#working_icon").classed("invisible", !flag);
         d3.selectAll(sel + " .calc").classed("hidden", !flag);
         d3.selectAll(sel + " .calc-done").classed("hidden", flag);
     };
@@ -111,19 +142,24 @@ var view = (function () {
     that.append_weight_tds = append_weight_tds;
 
     plot_svg = function (selector, spec) {
-        var svg;
+        var g;
 
         if (!VIS.svg) {
             VIS.svg = d3.map();
         }
         if (VIS.svg.has(selector)) {
-            return VIS.svg.get(selector);
+            g = VIS.svg.get(selector);
+            d3.select(selector + " svg")
+                .attr("width", spec.w + spec.m.left + spec.m.right)
+                .attr("height", spec.h + spec.m.top + spec.m.bottom);
+
+            g.attr("transform",
+                    "translate(" + spec.m.left + "," + spec.m.top + ")");
+        } else {
+            g = append_svg(d3.select(selector), spec);
+            VIS.svg.set(selector, g);
         }
-
-        svg = append_svg(d3.select(selector), spec);
-
-        VIS.svg.set(selector, svg);
-        return svg;
+        return g;
     };
     that.plot_svg = plot_svg;
 
@@ -139,6 +175,16 @@ var view = (function () {
                       "translate(" + spec.m.left + "," + spec.m.top + ")");
     };
     that.append_svg = append_svg;
+
+    scroll_top = function () {
+        window.scrollTo(window.scrollX, 0);
+    };
+    that.scroll_top = scroll_top;
+
+    scroll_origin = function () {
+        window.scrollTo(0, 0);
+    };
+    that.scroll_origin = scroll_origin;
 
     return that;
 }());

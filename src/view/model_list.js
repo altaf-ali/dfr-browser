@@ -1,4 +1,4 @@
-/*global view, VIS, set_view, topic_link, topic_hash, d3 */
+/*global view, VIS, d3 */
 "use strict";
 
 view.model.list = function (p) {
@@ -18,12 +18,18 @@ view.model.list = function (p) {
             .enter().append("tr");
 
         trs.on("click", function (t) {
-            set_view(topic_hash(t));
+            view.dfb().set_view(view.topic.hash(t));
         });
 
-        trs.append("td").append("a")
-            .text(function (t) { return t + 1; }) // sigh
-            .attr("href", topic_link);
+        trs.classed("hidden_topic", function (t) {
+            return p.topic_hidden[t];
+        });
+
+        trs.append("td").append("a").classed("topic_name", true)
+            .attr("href", view.topic.link)
+            .text(function (t) {
+                return p.labels[t];
+            });
 
         divs = trs.append("td").append("div").classed("spark", true);
         view.append_svg(divs, VIS.model_view.list.spark)
@@ -38,7 +44,8 @@ view.model.list = function (p) {
                 });
             });
 
-        trs.append("td").append("a").classed("topic_words", true);
+        trs.append("td").append("a").classed("topic_words", true)
+            .attr("href", view.topic.link);
 
         token_max = d3.max(p.sums);
         view.append_weight_tds(trs, function (t) {
@@ -56,10 +63,10 @@ view.model.list = function (p) {
     // rewrite the topic words column
     trs.selectAll("td a.topic_words")
         .text(function (t) {
-            return p.words[t].map(function (w) { return w.word; })
-                .join(" ");
-        })
-        .attr("href", topic_link);
+            return p.words[t].reduce(function (acc, x) {
+                return acc + " " + x.word;
+            }, "");
+        });
 
     // sorting
 
@@ -71,20 +78,16 @@ view.model.list = function (p) {
     sort_dir = p.dir || ((sort_choice === VIS.last.model_list.sort) ?
         VIS.last.model_list.dir : "up") || "up";
 
-    // default sort: by topic number
-    keys = d3.range(p.yearly.length);
     if (sort_choice === "words") {
-        keys = keys.map(function (t) {
-            return p.words[t].reduce(function (acc, w) {
+        keys = p.words.map(function (ws) {
+            return ws.reduce(function (acc, w) {
                 return acc + " " + w.word;
             }, "");
         });
     } else if (sort_choice === "frac") {
         // default ordering should be largest frac to least,
         // so the sort keys are negative proportions
-        keys = keys.map(function (t) {
-            return -p.sums[t] / total;
-        });
+        keys = p.sums.map(function (x) { return -x / total; });
     } else if (sort_choice === "year") {
         keys = p.yearly.map(function (series) {
             var result, max_weight = 0;
@@ -96,6 +99,10 @@ view.model.list = function (p) {
             });
             return result;
         });
+    } else {
+        // default sort: by label sort name,
+        // with names promoted over numbers
+        keys = p.labels.map(view.topic.sort_name);
     }
 
     if (sort_dir === "down") {
@@ -131,7 +138,7 @@ view.model.list = function (p) {
                 .attr("href", ref);
         })
         .on("click", function () {
-            set_view(d3.select(this).select("a")
+            view.dfb().set_view(d3.select(this).select("a")
                 .attr("href").replace(/#/, ""));
         });
 
