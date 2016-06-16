@@ -1,0 +1,9 @@
+name: dfr-browser
+dependencies:
+- pip
+- python
+- scipy
+- numpy
+- pandas
+- matplotlib
+- jupyter

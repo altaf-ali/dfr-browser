@@ -20,12 +20,16 @@ model = function (spec) {
         n_top_words,
         total_tokens,
         topic_total,
+        doc_years,
         alpha,
         meta,
+        countries,
+        session_index,
         vocab,
         topic_scaled,
         topic_yearly, // time-slicing
         valid_year,
+        yearly_docs,
         yearly_total,
         topic_docs, // most salient _ in _
         topic_words,
@@ -33,13 +37,15 @@ model = function (spec) {
         word_topics,
         year_topics,
         topic_label,
-        set_dt, // methods for loading model data from strings 
+        set_dt, // methods for loading model data from strings
         set_tw,
         set_meta,
-        set_topic_scaled;
+        set_topic_scaled,
+        set_countries,
+        set_session_index;
 
     my.ready = { };
-    my.worker = new Worker("js/worker.min.js");
+    my.worker = new Worker("src/worker.js");
     my.worker.fs = d3.map();
     my.worker.onmessage = function (e) {
         var f = my.worker.fs.get(e.data.what);
@@ -157,7 +163,6 @@ model = function (spec) {
         return my.meta.doc(d);
     };
     that.meta = meta;
-
 
     // validate dates
     valid_year = function (y) {
@@ -292,7 +297,45 @@ model = function (spec) {
     };
     that.doc_topics = doc_topics;
 
-    // Get n top words for topic t.
+    yearly_docs = function (year, callback) {
+
+        var n_req, f = callback;
+        if (year !== undefined) {
+            n_req = this.n_docs();
+            f = function (docs) {
+                var doc_topics = docs.map(function(d) {
+                    var topics = [];
+                    for (var t = 0; t < that.n(); t += 1) {
+                        var id = String(d.doc) + "_" + String(t);
+                        topics.push({
+                            id: id,
+                            doc: d.doc,
+                            year: that.meta(d.doc).date.getUTCFullYear(),
+                            country: that.meta(d.doc)['authors'],
+                            topic: t,
+                            weight: d.topics[t]
+                        });
+                    }
+                    return(topics);
+                });
+
+                // var year_docs = docs.filter(function (d) {
+                //     return that.meta(d.doc).date.getUTCFullYear() === +year;
+                // });
+                return callback([].concat.apply([], doc_topics));
+            };
+        }
+
+        my.worker.callback("yearly_docs/" + year, f);
+        my.worker.postMessage({
+            what: "yearly_docs",
+            y: year,
+            n: n_req
+        });
+    }
+    that.yearly_docs = yearly_docs;
+
+        // Get n top words for topic t.
     topic_words = function (t, n) {
         var n_words = n || this.n_top_words(),
             words;
@@ -469,6 +512,45 @@ model = function (spec) {
         });
     };
     that.set_topic_scaled = set_topic_scaled;
+
+    // load countries from a string of JSON
+    // callback should take one parameter, a Boolean indicating success
+    set_countries = function (countries_s, callback) {
+        if (typeof countries_s  !== 'string') {
+            callback(false);
+        }
+
+        my.countries = JSON.parse(countries_s);
+    };
+    that.set_countries = set_countries;
+
+    // countries
+    that.countries = function () {
+        return my.countries[0];
+    };
+
+    // load session index from a string of JSON
+    // callback should take one parameter, a Boolean indicating success
+    set_session_index = function (sessions_s, callback) {
+        if (typeof sessions_s  !== 'string') {
+            callback(false);
+        }
+
+        my.session_index = JSON.parse(sessions_s);
+    };
+    that.set_session_index = set_session_index;
+
+    // session_index
+    that.session_index = function () {
+        return my.session_index;
+    };
+
+
+    doc_years = function () {
+        var years = Object.keys(my.years).map(function(d) { return Number(d.replace(/\D/g, '')); });
+        return(years.sort());
+    }
+    that.doc_years = doc_years;
 
     return that;
 };

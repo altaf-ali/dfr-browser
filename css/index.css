@@ -555,7 +555,7 @@ th#doc_view_weight {
 #bib_headings ul {
     list-style-type: none;
     height: auto;
-    max-height: 210px; /* short affix on small screens */
+    max-height: 300px; /* short affix on small screens */
     overflow-y: auto;
     overflow-x: hidden;
     border: 1px solid rgb(221, 221, 211);
@@ -665,3 +665,152 @@ th#doc_view_weight {
     padding-top: 5ex;
     font-style: italic;
 }
+
+/* grid */
+#model_view_matrix #model_view_matrix_header #model_view_matrix_grid {
+    padding-bottom: 60px;
+}
+
+#model_view_matrix line.normal {
+    stroke: #808080;
+    stroke-opacity: 1;
+    stroke-width: 0.5px;
+}
+
+#model_view_matrix line.active {
+    stroke: #933 ;
+    stroke-opacity: 1 ;
+    stroke-width: 1.5px ;
+}
+
+#model_view_matrix .topic_labels {
+    cursor: pointer;
+}
+
+#model_view_matrix .topic_labels .active {
+    fill: #933 ;
+    font-weight: bold;
+}
+
+#model_view_matrix .country_labels {
+    cursor: pointer;
+}
+
+#model_view_matrix .country_labels .active {
+    fill: #933 ;
+    font-weight: bold;
+}
+
+#model_view_matrix .hidden_line {
+    stroke: transparent ;
+    stroke-opacity: 0 ;
+    stroke-width: 10 ;
+    cursor: pointer;
+}
+
+#model_view_matrix .country_labels text {
+    text-anchor: end;
+}
+
+#model_view_matrix_grid {
+    overflow-y: auto;
+    max-height: 800px;
+}
+
+#model_view_matrix_grid circle {
+    opacity: 0.75
+}
+
+#model_view_matrix_grid circle.normal {
+    fill: rgb(28, 162, 175);
+    fill-opacity: 0.4;
+    stroke: #808080;
+    stroke-opacity: 0.8;
+}
+
+#model_view_matrix_grid circle.active {
+    fill: #933;
+    fill-opacity: 0.8;
+    stroke: #808080;
+    stroke-opacity: 0.8;
+}
+
+
+/* controls */
+#model_view_matrix_controls {
+    background: white;
+    position: fixed;
+    bottom: 0;
+    height: auto;
+    width: 100%;
+}
+
+#model_view_matrix_controls {
+    float: left;
+    padding: 15px 10px 25px 10px;
+}
+
+#model_view_matrix_controls #backward-control, #model_view_matrix_controls #forward-control {
+    float: left;
+    padding: 7px 3px 0px 0px;
+}
+
+#model_view_matrix_controls #play-control {
+    float: left;
+    padding: 7px 10px 0px 20px;
+}
+
+#model_view_matrix_controls #slider-control {
+    margin: 12px 0px 0px 20px;
+    width: 650px;
+    float: left;
+}
+
+#model_view_matrix_controls #status-control {
+    float: left;
+}
+
+#model_view_matrix_controls #status-control #year {
+    font-family: "Arial";
+    font-size: 24px;
+}
+
+.d3-slider-handle {
+    cursor: pointer;
+}
+
+.selectize-input {
+    overflow-y: auto;
+    max-height: 195px;
+}
+
+/* debates view */
+#debates-container {
+    padding-top: 10px;
+}
+
+#debates_year {
+    max-height: 495px;
+}
+
+#debate_text_container {
+    padding: 10px;
+}
+
+#debate_text {
+    width: 100%;
+    height: 650px;
+    resize: none;
+    padding: 5px;
+    border-color: #e5e5e5;
+}
+
+#sessions-container {
+    padding-top: 10px;
+}
+
+#sessions_pdf_container {
+    height: 700px;
+    padding: 5px;
+}
+

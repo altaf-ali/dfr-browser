@@ -8,12 +8,12 @@ bib.dfr = function (spec) {
 
     // Construction: override inherited sorting()
     that.sorting([
-        ["year_authortitle", "by year, then by author"],
-        ["issue_journalcontents", "by journal issue"],
-        ["year_journalcontents", "by year, then by journal contents"],
+        ["year_authortitle", "by year, then by country"],
+        // ["issue_journalcontents", "by journal issue"],
+        // ["year_journalcontents", "by year, then by journal contents"],
         ["decade_date", "chronologically by decades"],
-        ["decade_authortitle", "by decades, then by author"],
-        ["author_authortitle", "alphabetically by author"]
+        ["decade_authortitle", "by decades, then by country"],
+        ["author_authortitle", "alphabetically by country"]
     ]);
 
     // sort keys
@@ -166,6 +166,8 @@ bib.dfr = function (spec) {
 
     // override inherited citation
     that.citation = function (doc) {
+        return doc.date.getUTCFullYear() + ", " + doc.title;
+
         var s = doc_author(doc.authors),
             title;
 
@@ -202,9 +204,7 @@ bib.dfr = function (spec) {
 
     // provide url method
     that.url = function (doc) {
-        return "http://www.jstor.org"
-            + "/stable/"
-            + doc.doi;
+        return "un_debates/" + doc.doi;
     };
 
     return that;

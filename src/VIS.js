@@ -5,14 +5,17 @@
 var VIS = {
     ready: { }, // which viz already generated?
     last: { // which subviews last shown?
-        bib: { }
+        bib: { },
+        matrix: {}
     },
     files: { // what data files to request
         info: "data/info.json",
         meta: "data/meta.csv.zip",  // remove .zip to use uncompressed data
         dt: "data/dt.json.zip",     // (name the actual file accordingly)
         tw: "data/tw.json",
-        topic_scaled: "data/topic_scaled.csv"
+        topic_scaled: "data/topic_scaled.csv",
+        countries: "data/countries.json",
+        session_index: "data/sessions.json"
     },
     default_view: "/model", // specify the part after the #
     overview_words: 15,     // may need adjustment
@@ -35,6 +38,28 @@ var VIS = {
             label_threshold: 40, // px
             words: 4,
             label_words: 2 // should be <= words
+        },
+        matrix: {
+            header: {
+                w: 800,
+                h: 40,
+                m: { // margins
+                    left: 10,
+                    right: 20,
+                    top: 25,
+                    bottom: 10
+                }
+            },
+            body: {
+                w: 800,
+                h: 3700,
+                m: { // margins
+                    left: 10,
+                    right: 20,
+                    top: 25,
+                    bottom: 40
+                }
+            }
         },
         list: {
             spark: {

@@ -8,8 +8,10 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/bootstrap.min.css" media="screen">
+  <link rel="stylesheet" href="css/d3.slider.css" type="text/css">
+  <link rel="stylesheet" href="css/selectize.default.css" type="text/css">
 
-  <link rel="stylesheet" href="css/index.css" type="text/css"> 
+  <link rel="stylesheet" href="css/index.css" type="text/css">
 </head>
 
 <body>
@@ -25,7 +27,7 @@
     </div>
     <div id="nav_toplevel" class="collapse navbar-collapse">
       <ul id="nav_main" class="nav navbar-nav">
-        <li id="nav_model"><a href="#/model">Overview</a></li>
+        <li id="nav_model"><a href="#/model">UN Debates</a></li>
         <li id="nav_topic" class="dropdown">
           <a href="#/topic" class="dropdown-toggle" data-toggle="dropdown" data-target="#" id="topic_dropdown_toggle">
             Topic<b class="caret"></b>
@@ -36,14 +38,15 @@
         </li>
         <li id="nav_doc"><a href="#/doc">Document</a></li>
         <li id="nav_word"><a href="#/word">Word</a></li>
-        <li id="nav_bib"><a href="#/bib">Bibliography</a></li>
+        <li id="nav_debates"><a href="#/debates">Debates</a></li>
+        <li id="nav_bib"><a href="#/bib">Debate Index</a></li>
         <li id="nav_words"><a href="#/words">Word index</a></li>
         <li><a><img id="working_icon" alt="Working..."
           class="img-responsive"
           src="img/loading.gif" /></a></li>
       </ul>
-      <ul class="nav navbar-nav navbar-right">
-        <li id="nav_settings"><a href="#/settings">Settings</a></li>
+      <ul id="nav_secondary" class="nav navbar-nav navbar-right">
+        <li id="nav_download"><a href="#/download">Download</a></li>
         <li id="nav_about"><a href="#/about">About</a></li>
       </ul>
     </div><!--/.navbar-collapse -->
@@ -103,26 +106,18 @@
     <nav class="nav navbar-default hidden" role="navigation">
       <div class="collapse navbar-collapse navbar-ex1-collapse">
         <ul id="nav_model" class="nav navbar-nav nav-pills">
-          <li id="nav_model_grid" class="active">
-            <a href="#/model/grid">Grid</a>
-          </li>
-          <li id="nav_model_scaled">
-            <a href="#/model/scaled">Scaled</a>
+          <li id="nav_model_matrix" class="active">
+            <a href="#/model/matrix">Matrix</a>
           </li>
           <li id="nav_model_list">
             <a href="#/model/list">List</a>
           </li>
-          <li id="nav_model_yearly">
-            <a href="#/model/yearly">Years</a>
-          </li>
         </ul>
         <div class="navbar-right">
-          <p class="navbar-text help model_view_grid hidden">
-            click a circle for more about a topic
+          <p id="matrix_view_help"
+             class="navbar-text help model_view_matrix hidden">
+            click a country or topic for more info
           </p>
-          <p id="model_view_help"
-          class="navbar-text help model_view_scaled model_view_yearly hidden">
-          scroll to zoom; shift-drag to pan; click for more about a topic</p>
           <p id="list_view_help"
           class="navbar-text help model_view_list hidden">
           click a column label to sort; click a row for more about a topic</p>
@@ -146,6 +141,66 @@
         </div>
       </div>
     </nav>
+    <div id="model_view_matrix" class="hidden">
+      <div id="model_view_matrix_container" class="col-md-9">
+        <div id="model_view_matrix_header"></div>
+        <div id="model_view_matrix_grid"></div>
+      </div>
+      <div id="model_view_matrix_sidebar" class="col-md-3">
+        <h3 class="h-small" id="doc_label"></h3>
+        <table class="table table-condensed" id="matrix_sidebar_doc_topics">
+          <col width="10%">
+          <col width="90%">
+          <thead>
+          <tr>
+            <th id="matrix_sidebar_topic">Topic</th>
+            <th id="matrix_sidebar_topic_frac" class="th-right">%</th>
+          </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+        <h3 class="h-small"id="topic_label"></h3>
+        <table class="table table-condensed" id="matrix_sidebar_topic_words">
+          <col width="10%">
+          <col width="90%">
+          <thead>
+          <tr>
+            <th id="matrix_sidebar_word">Word</th>
+            <th id="matrix_sidebar_word_frac" class="th-right">%</th>
+          </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+      <div id="model_view_matrix_controls">
+          <div id="status-control">
+            <span id="year">1900</span>
+          </div>
+
+          <div id="play-control">
+            <button id="play-button" class="btn btn-default btn-xs">
+              <span id="play" class="glyphicon glyphicon-play"></span>
+            </button>
+          </div>
+
+          <div id="backward-control">
+            <button id="backward-button" class="btn btn-default btn-xs">
+              <span id="step-backward" class="glyphicon glyphicon-step-backward"></span>
+            </button>
+          </div>
+
+          <div id="forward-control">
+            <button id="forward-button" class="btn btn-default btn-xs">
+              <span id="step-forward" class="glyphicon glyphicon-step-forward"></span>
+            </button>
+          </div>
+
+          <div id="slider-control"></div>
+      </div>
+    </div>
+
     <div id="model_view_list" class="hidden">
       <table class="table table-condensed">
         <thead>
@@ -179,6 +234,36 @@
     <div id="model_view_plot" class="hidden">
     </div>
     <div id="model_view_yearly" class="hidden">
+    </div>
+  </div>
+
+  <div id="download_view" class="hidden">
+    <div class="container">
+      <form class="form-horizontal">
+        <div class="form-group">
+          <label for="download_years" class="col-sm-2 control-label">Years</label>
+          <div class="col-sm-8">
+            <select  id="download_years"></select>
+          </div>
+          <button id="download_years_select_all" type="button" class="btn btn-default">Select All</button>
+          <button id="download_years_clear_all" type="button" class="btn btn-default">Clear All</button>
+        </div>
+        <div class="form-group">
+          <label for="download_countries" class="col-sm-2 control-label">Countries</label>
+          <div class="col-sm-8">
+            <select  id="download_countries"></select>
+          </div>
+          <button id="download_countries_select_all" type="button" class="btn btn-default">Select All</button>
+          <button id="download_countries_clear_all" type="button" class="btn btn-default">Clear All</button>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-offset-2 col-sm-10">
+            <button id="download" type="button" class="btn btn-default">
+              <span class="glyphicon glyphicon-download"></span>
+              Download</button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -255,8 +340,8 @@
 
   <div id="doc_view" class="hidden">
     <div id="doc_view_help">
-      <p class="help">Choose a specific document to view from 
-      <a class="external" href="#/bib">the bibliography</a> or from
+      <p class="help">Choose a specific document to view from the
+      <a class="external" href="#/bib">Debate Index</a> or from
         <a class="external" href="#/topic">a topic page</a>.</p>
       <p class="help hidden" id="last_doc_help">Below: the last-viewed document. Stable link to this view: <a class="external" id="last_doc" href="#/doc"></a></p>
     </div>
@@ -264,7 +349,7 @@
       <h2 class="h-small" id="doc_header"></h2>
       <p id="doc_remark">
         <span class="token_count"></span> tokens.
-        (<a class="url external">view on JSTOR</a>)
+        (<a class="url external">View Transcript</a>)
       </p>
       <table class="table table-condensed" id="doc_topics">
         <thead>
@@ -313,6 +398,67 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <div id="debates_view" class="hidden">
+    <nav class="nav navbar-default" role="navigation">
+      <div class="collapse navbar-collapse navbar-ex1-collapse">
+        <ul id="nav_debates_tabs" class="nav navbar-nav nav-pills">
+          <li id="nav_debates_main" class="active">
+            <a href="#/debates/main">Debates</a>
+          </li>
+          <li id="nav_debates_sessions">
+            <a href="#/debates/sessions">Sessions</a>
+          </li>
+        </ul>
+        </div>
+      </nav>
+
+    <div id="debates_view_main" class="hidden">
+      <div id="debates-container">
+        <form class="form-horizontal">
+          <div class="form-group">
+            <label for="debates_year" class="col-sm-1 control-label">Year</label>
+            <div class="col-sm-1">
+              <select id="debates_year" class="form-control"></select>
+            </div>
+
+            <label for="debates_country" class="col-sm-1 control-label">Country</label>
+            <div class="col-sm-4">
+              <select id="debates_country" class="form-control"></select>
+            </div>
+
+            <div class="col-md-12" id="debate_text_container">
+              <textarea readonly id="debate_text"></textarea>
+            </div>
+
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="debates_view_sessions" class="hidden">
+      <div id="sessions-container">
+        <form class="form-horizontal">
+          <div class="form-group">
+            <label for="session_number" class="col-sm-1 control-label">Year</label>
+            <div class="col-sm-2">
+              <select id="session_number" class="form-control"></select>
+            </div>
+
+            <label for="meeting_number" class="col-sm-1 control-label">Day</label>
+            <div class="col-sm-2">
+              <select id="meeting_number" class="form-control"></select>
+            </div>
+
+            <div class="col-md-12" id="sessions_pdf_container">
+            </div>
+
+          </div>
+        </form>
+      </div>
+    </div>
+
   </div>
 
   <div id="bib_view" class="hidden">
@@ -364,12 +510,35 @@
 
 <script type="text/javascript" src="lib/jquery-1.11.0.min.js"></script>
 <script type="text/javascript" src="lib/bootstrap.min.js"></script>
+<script type="text/javascript" src="lib/d3.slider.js"></script>
 <script type="text/javascript" src="lib/jszip.min.js"></script>
+<script type="text/javascript" src="lib/selectize.js"></script>
+<script type="text/javascript" src="lib/pdfobject.js"></script>
 
 <!-- __DATA__ -->
 
-<script type="text/javascript" src="js/utils.min.js"></script>
-<script type="text/javascript" src="js/dfb.min.js"></script>
+<script type="text/javascript" src="src/utils.js"></script>
+<script type="text/javascript" src="src/dfb.js"></script>
+<script type="text/javascript" src="src/metadata.js"></script>
+<script type="text/javascript" src="src/bib.js"></script>
+<script type="text/javascript" src="src/bib_dfr.js"></script>
+<script type="text/javascript" src="src/model.js"></script>
+<script type="text/javascript" src="src/VIS.js"></script>
+<script type="text/javascript" src="src/view/view.js"></script>
+<script type="text/javascript" src="src/view/about.js"></script>
+<script type="text/javascript" src="src/view/download.js"></script>
+<script type="text/javascript" src="src/view/settings.js"></script>
+<script type="text/javascript" src="src/view/bib.js"></script>
+<script type="text/javascript" src="src/view/topic.js"></script>
+<script type="text/javascript" src="src/view/doc.js"></script>
+<script type="text/javascript" src="src/view/word.js"></script>
+<script type="text/javascript" src="src/view/words.js"></script>
+<script type="text/javascript" src="src/view/model.js"></script>
+<script type="text/javascript" src="src/view/model_list.js"></script>
+<script type="text/javascript" src="src/view/model_matrix.js"></script>
+<script type="text/javascript" src="src/view/model_plot.js"></script>
+<script type="text/javascript" src="src/view/model_yearly.js"></script>
+<script type="text/javascript" src="src/view/debates.js"></script>
 
 <script type="text/javascript">
 dfb({

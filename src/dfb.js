@@ -8,11 +8,16 @@ var dfb = function (spec) {
         word_view,
         words_view,
         doc_view,
+        debates_view,
+        doc_summary,
+        topic_summary,
         bib_view,
         about_view,
+        download_view,
         settings_modal,
         model_view,
         model_view_list,
+        model_view_matrix,
         model_view_plot,
         model_view_yearly,
         refresh,
@@ -282,6 +287,35 @@ doc_view = function (d) {
 };
 that.doc_view = doc_view;
 
+doc_summary = function (d, callback) {
+    var doc = +d;
+
+    my.m.doc_topics(doc, my.m.n(), function (ts) {
+        var topics = ts.filter(function (t) {
+            return !VIS.topic_hidden[t.topic] || VIS.show_hidden_topics;
+        });
+
+        callback({
+            doc: doc,
+            topics: topics,
+            labels: topics.map(function (t) {
+                return my.m.topic_label(t.topic);
+            }),
+            total_tokens: d3.sum(topics, function (t) { return t.weight; })
+        })
+    });
+}
+that.doc_summary = doc_summary;
+
+topic_summary = function (t, callback) {
+    var topic = +t;
+
+    var words = utils.shorten(my.m.topic_words(topic), VIS.topic_view.words);
+
+    callback(words);
+}
+that.topic_summary = topic_summary;
+
 bib_view = function (maj, min, dir) {
     var sorting = {
             major: maj,
@@ -348,6 +382,56 @@ bib_view = function (maj, min, dir) {
 };
 that.bib_view = bib_view;
 
+debates_view = function (type) {
+    var div = d3.select("div#debates_view");
+    var type_chosen = type || VIS.last.debates || "main";
+
+    // ensure pill highlighting
+    d3.selectAll("#nav_debates_tabs li.active").classed("active", false);
+    d3.select("#nav_debates_" + type_chosen).classed("active", true);
+
+    // hide all subviews and controls; we'll reveal the chosen one
+    d3.select("#debates_view_main").classed("hidden", true);
+    d3.select("#debates_view_sessions").classed("hidden", true);
+    d3.select("#debates_view_index").classed("hidden", true);
+
+    d3.selectAll(".debates_view_main").classed("hidden", true);
+    d3.selectAll(".debates_view_sessions").classed("hidden", true);
+    d3.selectAll(".debates_view_index").classed("hidden", true);
+
+    // reveal navbar
+    d3.select("#debates_view nav").classed("hidden", false);
+
+    VIS.last.debates = type_chosen;
+
+    // reveal interface elements
+    d3.selectAll("#debates_view_" + type_chosen).classed("hidden", false);
+
+    if (!my.m.meta() || !my.m.has_dt()) {
+        view.loading(true);
+        return true;
+    }
+
+    if (type_chosen === "main") {
+        view.debates_main(my.m.doc_years(), my.m.meta());
+    } else if (type_chosen === "sessions") {
+        view.debates_sessions(my.m.session_index());
+    }
+
+    view.loading(false);
+
+    return true;
+};
+that.word_view = word_view;
+
+download_view = function () {
+    view.download(my.m.doc_years(), my.m.countries());
+    view.loading(false);
+    d3.select("#download_view").classed("hidden", false);
+    return true;
+};
+that.download_view = download_view;
+
 about_view = function () {
     view.about(my.m.info());
     view.loading(false);
@@ -373,7 +457,7 @@ settings_modal = function () {
 that.settings_modal = settings_modal;
 
 model_view = function (type, p1, p2) {
-    var type_chosen = type || VIS.last.model || "grid";
+    var type_chosen = type || VIS.last.model || "matrix";
 
     // if loading scaled coordinates failed,
     // we expect m.topic_scaled() to be defined but empty, so we'll pass this,
@@ -391,10 +475,12 @@ model_view = function (type, p1, p2) {
     d3.select("#model_view_plot").classed("hidden", true);
     d3.select("#model_view_list").classed("hidden", true);
     d3.select("#model_view_yearly").classed("hidden", true);
+    d3.select("#model_view_matrix").classed("hidden", true);
 
     d3.selectAll(".model_view_grid").classed("hidden", true);
     d3.selectAll(".model_view_scaled").classed("hidden", true);
     d3.selectAll(".model_view_list").classed("hidden", true);
+    d3.selectAll(".model_view_matrix").classed("hidden", true);
     d3.selectAll(".model_view_yearly").classed("hidden", true);
 
     // reveal navbar
@@ -416,22 +502,15 @@ model_view = function (type, p1, p2) {
 
         model_view_yearly(p1);
         d3.select("#model_view_yearly").classed("hidden", false);
-    } else { // grid or scaled
-        // if loading scaled coordinates failed,
-        // we expect m.topic_scaled() to be defined but empty
-        if (!my.m.topic_scaled() || !my.m.has_dt()) {
+    } else { // matrix
+        if (!my.m.meta() || !my.m.has_dt()) {
             view.loading(true);
             return true;
         }
 
-        if (type_chosen !== "scaled"
-                || my.m.topic_scaled().length !== my.m.n()) {
-            // default to grid if there are no scaled coords to be found
-            // or if type is misspecified
-            type_chosen = "grid";
-        }
-        model_view_plot(type_chosen);
-        d3.select("#model_view_plot").classed("hidden", false);
+        var years = my.m.doc_years()
+        model_view_matrix(years[0], years[years.length-1]);
+        d3.select("#model_view_matrix").classed("hidden", false);
     }
     VIS.last.model = type_chosen;
     // reveal interface elements
@@ -465,6 +544,26 @@ model_view_list = function (sort, dir) {
     return true;
 };
 that.model_view_list = model_view_list;
+
+model_view_matrix = function (start, end, year) {
+    if (!year)
+        year = start;
+
+    my.m.yearly_docs(year, function (docs) {
+        view.calculating("#model_view_matrix", false);
+        view.model.matrix({
+            start: start,
+            end: end,
+            year: year,
+            docs: docs,
+            n_topics: my.m.n(),
+            countries: my.m.countries()
+        });
+    });
+
+    return true;
+};
+that.model_view_matrix = model_view_matrix;
 
 model_view_plot = function (type) {
     my.m.topic_total(undefined, function (totals) {
@@ -549,6 +648,9 @@ refresh = function () {
         case "model":
             success = model_view.apply(undefined, param);
             break;
+        case "download":
+            success = download_view.apply(undefined, param);
+            break;
         case "about":
             success = about_view.apply(undefined, param);
             break;
@@ -566,6 +668,9 @@ refresh = function () {
             break;
         case "words":
             success = words_view.apply(undefined, param);
+            break;
+        case "debates":
+            success = debates_view.apply(undefined, param);
             break;
         case "settings":
             settings_modal();
@@ -616,6 +721,7 @@ refresh = function () {
 
     // ensure highlighting of nav link
     d3.selectAll("#nav_main > li.active").classed("active", false);
+    d3.selectAll("#nav_secondary > li.active").classed("active", false);
     d3.select("li#nav_" + v_chosen).classed("active", true);
 
     // hide subnavs
@@ -809,6 +915,28 @@ load = function () {
                 view.error("Unable to load topic words from " + VIS.files.tw);
             }
         });
+        load_data(VIS.files.countries, function (error, s) {
+            my.m.set_countries(s, function (result) {
+                if (result) {
+                    refresh();
+                } else {
+                    view.error("Unable to load country names from "
+                        + VIS.files.countries);
+                }
+            });
+        });
+
+        load_data(VIS.files.session_index, function (error, s) {
+            my.m.set_session_index(s, function (result) {
+                if (result) {
+                    refresh();
+                } else {
+                    view.error("Unable to load session index from "
+                        + VIS.files.session_index);
+                }
+            });
+        });
+        
         load_data(VIS.files.topic_scaled, function (error, s) {
             if (typeof s === 'string') {
                 my.m.set_topic_scaled(s);

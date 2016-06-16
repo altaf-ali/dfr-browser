@@ -1,6 +1,6 @@
 /*global importScripts, utils, onmessage, postMessage */
 "use strict";
-importScripts("utils.min.js");
+importScripts("utils.js");
 
 var my = { },
     doc_topics_matrix,
@@ -8,7 +8,8 @@ var my = { },
     topic_docs,
     doc_topics,
     topic_yearly,
-    yearly_total;
+    yearly_total,
+    yearly_docs;
 
 doc_topics_matrix = function (data) { 
     var my = { },
@@ -262,6 +263,29 @@ yearly_total = function (year) {
     return isFinite(year) ? my.yearly_total[year] : my.yearly_total;
 };
 
+yearly_docs = function (year, n_docs) {
+    if (!my.yearly_docs) {
+        my.yearly_docs = {}
+    }
+
+    if (!my.yearly_docs[year]) {
+        var docs = [ ];
+
+        for (var i = 0; i < n_docs; i += 1) {
+            if (my.doc_years[i] == year) {
+                var topics = my.dt.get(i);
+                var topic_sum = topics.reduce(function(a, b) { return a + b; }, 0);
+                docs.push({doc: i, topics: topics.map(function(t) {return t / topic_sum}) });
+            }
+        }
+
+        my.yearly_docs[year] = docs;
+    }
+
+    return my.yearly_docs[year];
+};
+
+
 // main dispatch
 onmessage = function (e) {
     if (e.data.what === "set_dt") {
@@ -309,6 +333,11 @@ onmessage = function (e) {
         postMessage({
             what: "yearly_total/" + e.data.y,
             result: yearly_total(e.data.y === "all" ? undefined : e.data.y)
+        });
+    } else if (e.data.what === "yearly_docs") {
+        postMessage({
+            what: "yearly_docs/" + e.data.y,
+            result: yearly_docs(e.data.y, e.data.n)
         });
     } else {
         postMessage({ what: "error" });

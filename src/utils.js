@@ -1,5 +1,5 @@
 var utils = (function () {
-    "use strict";
+    //"use strict";
     var that = {},
         shorten,
         deep_replace,

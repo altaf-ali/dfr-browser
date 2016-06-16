@@ -16,6 +16,7 @@ var view = (function () {
         tooltip,
         append_weight_tds,
         plot_svg,
+        append,
         append_svg,
         scroll_top,
         scroll_origin;
@@ -149,6 +150,10 @@ var view = (function () {
         }
         if (VIS.svg.has(selector)) {
             g = VIS.svg.get(selector);
+            d3.select(selector + " svg");
+                // .attr("width", "100%")
+                // .attr("height", "100%");
+
             d3.select(selector + " svg")
                 .attr("width", spec.w + spec.m.left + spec.m.right)
                 .attr("height", spec.h + spec.m.top + spec.m.bottom);
@@ -175,6 +180,12 @@ var view = (function () {
                       "translate(" + spec.m.left + "," + spec.m.top + ")");
     };
     that.append_svg = append_svg;
+
+    append = function (parent, type) {
+        return d3.select(parent).append(type)
+    };
+    that.append = append;
+
 
     scroll_top = function () {
         window.scrollTo(window.scrollX, 0);

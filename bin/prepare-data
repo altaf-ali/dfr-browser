@@ -157,7 +157,7 @@ def convert_citations(fs, matchfile, out):
             meta.readline() # header
             for line in meta:
                 fields = [s.replace('"', '""') for s in line.strip().split("\t")]
-                ll.append('"' + fields[0] + '","' + '","'.join(fields[2:9]) +
+                ll.append('"' + fields[1] + '","' + '","'.join(fields[2:9]) +
                         '"')
                 in_ids[fields[0]] = i
                 i += 1
